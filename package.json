@@ -14,10 +14,13 @@
   "dependencies": {
     "moment": "^2.29.1",
     "moment-timezone": "^0.5.34",
+    "mongodb": "^4.3.1",
+    "nanoid": "^3.2.0",
     "node-telegram-bot-api": "^0.56.0",
     "nodemon": "^2.0.15"
   },
   "devDependencies": {
+    "@types/node": "^17.0.17",
     "@types/node-telegram-bot-api": "^0.53.6",
     "typescript": "^4.5.5"
   }
