@@ -66,11 +66,10 @@ class DataBase {
         });
     }
     //удаляем напоминнаие
-    deleteReminder(usedId, id) {
+    deleteReminder(_id) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
-                this.reminders.deleteOne({ id: id, usedId: usedId });
-                console.log('reminder deleted');
+                this.reminders.deleteOne({ _id });
             }
             catch (e) {
                 console.log(e);

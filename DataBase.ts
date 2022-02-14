@@ -1,4 +1,4 @@
-import { MongoClient, Collection, Document, FindCursor, WithId } from 'mongodb';
+import { MongoClient, Collection, Document, FindCursor, WithId, ObjectId } from 'mongodb';
 import { Reminder } from './Interfaces/Reminder/Reminder';
 import User from './Interfaces/User/User';
 
@@ -38,7 +38,7 @@ export default class DataBase {
         }
     }
     // получаем массив напоминаний
-    public async findAllReminders(id: number): Promise<WithId<Document>[] | Array<any>> {
+    public async findAllReminders(id: number): Promise<WithId<Document>[]> {
         try {
             const remiders: FindCursor<WithId<Document>> = this.reminders.find({"userId": id});
             if ((await remiders.count()) === 0) {
@@ -51,10 +51,9 @@ export default class DataBase {
         return [];
     }
     //удаляем напоминнаие
-    public async deleteReminder(usedId: number, id: string): Promise<void> {
+    public async deleteReminder(_id: ObjectId): Promise<void> {
         try {
-            this.reminders.deleteOne({id: id, usedId: usedId})
-            console.log('reminder deleted');
+            this.reminders.deleteOne({_id});
         } catch(e) {
             console.log(e);
         }

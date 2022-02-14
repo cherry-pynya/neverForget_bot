@@ -35,9 +35,6 @@ class NeverForget {
     init() {
         this.db.init();
         this.startBot();
-        this.listenForCallback();
-        this.listenForReminder();
-        this.checkForReminders();
     }
     //обработка команды /start, сохранияем id юзера и показываем ему меню
     startBot() {
@@ -54,6 +51,9 @@ class NeverForget {
                 console.log(e);
             }
         }));
+        this.listenForCallback();
+        this.listenForReminder();
+        this.checkForReminders();
     }
     //слушаем callback_query
     listenForCallback() {
@@ -111,7 +111,6 @@ class NeverForget {
     }
     //слушаем сообщения пользователя
     listenForReminder() {
-        this.checkTZexist();
         this.bot.on("message", (msg) => __awaiter(this, void 0, void 0, function* () {
             try {
                 const { status } = this.reminderState;
@@ -187,7 +186,6 @@ class NeverForget {
         };
         try {
             this.db.addReminder(item);
-            this.fetchReminders();
         }
         catch (e) {
             this.relaodStates();
@@ -230,22 +228,10 @@ class NeverForget {
     checkForReminders() {
         setInterval(() => {
             if (this.user !== 0) {
-                const now = (0, moment_timezone_1.default)().tz(this.timeZone);
                 try {
-                    this.fetchReminders().then(() => {
-                        this.reminders.forEach((el, index) => __awaiter(this, void 0, void 0, function* () {
-                            try {
-                                const { date, text, userId, id, } = el;
-                                if ((0, moment_timezone_1.default)(date).tz(this.timeZone).isBefore(now)) {
-                                    yield this.db.deleteReminder(userId, id);
-                                    yield this.bot.sendMessage(this.user, text);
-                                    yield this.sendMainMenu();
-                                }
-                            }
-                            catch (e) {
-                                console.log(e);
-                            }
-                        }));
+                    this.db.findAllReminders(this.user).then((arr) => {
+                        console.log(arr);
+                        this.sendReminders(arr);
                     });
                 }
                 catch (e) {
@@ -253,7 +239,21 @@ class NeverForget {
                     this.bot.sendMessage(this.user, "Упс, что-то пошло не так! Попробуйте еще раз!", markUps_1.menu);
                 }
             }
-        }, 10000);
+        }, 1000);
+    }
+    // получаем массив активных напоминаний и отправляем просроченные 
+    sendReminders(arr) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const now = (0, moment_timezone_1.default)().tz(this.timeZone);
+            for (let i = 0; i < arr.length; i++) {
+                const { date, text, _id, } = arr[i];
+                if ((0, moment_timezone_1.default)(date).tz(this.timeZone).isBefore(now)) {
+                    yield this.db.deleteReminder(_id);
+                    const message = `Сегодня в ${(0, moment_timezone_1.default)(date).tz(this.timeZone).locale('ru').format('LT')} вы хотели: ${text}`;
+                    yield this.bot.sendMessage(this.user, message);
+                }
+            }
+        });
     }
 }
 exports.default = NeverForget;

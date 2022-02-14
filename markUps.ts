@@ -9,9 +9,9 @@ export const menu: SendMessageOptions = {
             [
                 {text: 'Новое напоминание', callback_data: '/newReminder'},
             ], [
-                {text: 'Удалить напоминание', callback_data: '/deleteMessage'},
-            ], [
                 {text: 'Показать все напоминания', callback_data: '/showList'},
+            ], [
+                {text: 'Удалить напоминание', callback_data: '/deleteMessage'},
             ], [
                 {text: 'Изменить часовой пояс', callback_data: '/settings'},
             ]

@@ -5,7 +5,7 @@ import TelegramApi, {
 import moment from "moment-timezone";
 import DataBase from "./DataBase";
 import { nanoid } from "nanoid";
-import { Document, WithId } from "mongodb";
+import { Document, WithId, ObjectId } from "mongodb";
 
 import { backToMenu, menu, countrySelection } from "./markUps";
 import messages from "./messages";
@@ -42,9 +42,6 @@ export default class NeverForget {
   public init(): void {
     this.db.init();
     this.startBot();
-    this.listenForCallback();
-    this.listenForReminder();
-    this.checkForReminders();
   }
 
   //обработка команды /start, сохранияем id юзера и показываем ему меню
@@ -65,6 +62,9 @@ export default class NeverForget {
         console.log(e);
       }
     });
+    this.listenForCallback();
+    this.listenForReminder();
+    this.checkForReminders();
   }
 
   //слушаем callback_query
@@ -148,7 +148,6 @@ export default class NeverForget {
   }
   //слушаем сообщения пользователя
   public listenForReminder(): void {
-    this.checkTZexist();
     this.bot.on("message", async (msg): Promise<Message | void> => {
       try {
         const { status }: { status: boolean } = this.reminderState;
@@ -251,7 +250,6 @@ export default class NeverForget {
     };
     try {
       this.db.addReminder(item);
-      this.fetchReminders();
     } catch (e) {
       this.relaodStates();
       this.bot.sendMessage(
@@ -298,30 +296,11 @@ export default class NeverForget {
   public checkForReminders(): void {
     setInterval((): void => {
       if (this.user !== 0) {
-        const now: moment.Moment = moment().tz(this.timeZone);
         try {
-          this.fetchReminders().then(() => {
-            this.reminders.forEach(
-              async (el: Reminder, index: number): Promise<Message | void> => {
-                try {
-                  const {
-                    date,
-                    text,
-                    userId,
-                    id,
-                  }: { date: string; text: string; userId: number; id: string } =
-                    el;
-                  if (moment(date).tz(this.timeZone).isBefore(now)) {
-                    await this.db.deleteReminder(userId, id);
-                    await this.bot.sendMessage(this.user, text);
-                    await this.sendMainMenu();
-                  }
-                } catch (e) {
-                  console.log(e);
-                }
-              }
-            );
-          })
+          this.db.findAllReminders(this.user).then((arr) => {
+            console.log(arr);
+            this.sendReminders(arr);
+          });
         } catch (e) {
           this.relaodStates();
           this.bot.sendMessage(
@@ -331,6 +310,24 @@ export default class NeverForget {
           );
         }
       }
-    }, 10000);
+    }, 1000);
+  }
+
+  // получаем массив активных напоминаний и отправляем просроченные 
+  public async sendReminders(arr: Array<any>): Promise<void> {
+    const now: moment.Moment = moment().tz(this.timeZone);
+    for (let i = 0; i < arr.length; i++) {
+      const {
+        date,
+        text,
+        _id,
+      }: { date: string; text: string; userId: number; _id: ObjectId } =
+      arr[i];
+      if (moment(date).tz(this.timeZone).isBefore(now)) {
+        await this.db.deleteReminder(_id);
+        const message: string = `Сегодня в ${moment(date).tz(this.timeZone).locale('ru').format('LT')} вы хотели: ${text}`
+        await this.bot.sendMessage(this.user, message);
+      }
+    }
   }
 }
