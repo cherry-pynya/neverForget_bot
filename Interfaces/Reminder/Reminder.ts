@@ -1,3 +1,5 @@
+import { ObjectId } from 'mongodb';
+
 export interface Reminder {
     date: string,
     text: string,

@@ -4,8 +4,8 @@ import User from './Interfaces/User/User';
 
 export default class DataBase {
     private db: MongoClient;
-    private users!: Collection;
-    private reminders!: Collection;
+    private users!: Collection<User>;
+    private reminders!: Collection<Reminder>;
     constructor(db: MongoClient) {
         this.db = db;
     }
@@ -14,8 +14,8 @@ export default class DataBase {
     public async init(): Promise<void> {
         try {
             await this.db.connect();
-            this.users = this.db.db().collection('users');
-            this.reminders = this.db.db().collection('reminders');
+            this.users = this.db.db().collection<User>('users');
+            this.reminders = this.db.db().collection<Reminder>('reminders');
             console.log('DB conected!');
         } catch(e) {
             console.log(e);
@@ -38,22 +38,23 @@ export default class DataBase {
         }
     }
     // получаем массив напоминаний
-    public async findAllReminders(id: number): Promise<WithId<Document>[]> {
+    public async findAllReminders(id: number): Promise<Reminder[]> {
+        const result: Array<Reminder> = [];
         try {
-            const remiders: FindCursor<WithId<Document>> = this.reminders.find({"userId": id});
+            const remiders = this.reminders.find<Reminder>({"userId": id});
             if ((await remiders.count()) === 0) {
-                return [];
+                return result;
             }
             return remiders.toArray();
         } catch(e) {
             console.log(e);
         }
-        return [];
+        return result;
     }
     //удаляем напоминнаие
-    public async deleteReminder(_id: ObjectId): Promise<void> {
+    public async deleteReminder(id: string): Promise<void> {
         try {
-            this.reminders.deleteOne({_id});
+            this.reminders.deleteOne({id});
         } catch(e) {
             console.log(e);
         }

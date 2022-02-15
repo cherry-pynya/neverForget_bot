@@ -35,6 +35,9 @@ class NeverForget {
     init() {
         this.db.init();
         this.startBot();
+        this.listenForCallback();
+        this.listenForReminder();
+        this.checkForReminders();
     }
     //обработка команды /start, сохранияем id юзера и показываем ему меню
     startBot() {
@@ -51,9 +54,6 @@ class NeverForget {
                 console.log(e);
             }
         }));
-        this.listenForCallback();
-        this.listenForReminder();
-        this.checkForReminders();
     }
     //слушаем callback_query
     listenForCallback() {
@@ -92,12 +92,18 @@ class NeverForget {
                     }
                     //показываем лист всех напоминаний пользователю
                     if (data === "/showList") {
-                        if (this.reminders.length === 0)
-                            return this.bot.sendMessage(this.user, "У вас нет сохоаненный напоминаний.", markUps_1.menu);
-                        this.reminders.forEach((el) => __awaiter(this, void 0, void 0, function* () {
-                            yield this.bot.sendMessage(this.user, el.text);
-                        }));
-                        return this.sendMainMenu();
+                        try {
+                            this.db.findAllReminders(this.user).then((reminders) => __awaiter(this, void 0, void 0, function* () {
+                                for (let i = 0; i < reminders.length; i++) {
+                                    const { date, text, } = reminders[i];
+                                    const formatedDate = (0, moment_timezone_1.default)(date).tz(this.timeZone).locale('ru').format('LLLL');
+                                    yield this.bot.sendMessage(this.user, `Напоминаие № раз\n${formatedDate}\n${text}`);
+                                }
+                            }));
+                        }
+                        catch (e) {
+                            return this.bot.sendMessage(this.user, "Что-то пошло не так!", markUps_1.menu);
+                        }
                     }
                 }
                 // если приходит неизвестная команда, то обнуляем стейты и выдаем меню пользователю
@@ -207,27 +213,10 @@ class NeverForget {
         const compared = new Date(date);
         return compared > now;
     }
-    // обновляем напоминания
-    fetchReminders() {
-        return __awaiter(this, void 0, void 0, function* () {
-            this.reminders = [];
-            yield this.db.findAllReminders(this.user).then((res) => {
-                res.forEach((el) => {
-                    const item = {
-                        userId: el["userId"],
-                        text: el["text"],
-                        id: el["id"],
-                        date: el["date"],
-                    };
-                    this.reminders.push(item);
-                });
-            });
-        });
-    }
     //запускваем проверку напоминаний
     checkForReminders() {
         setInterval(() => {
-            if (this.user !== 0) {
+            if (this.user !== 0 && this.timeZone !== '') {
                 try {
                     this.db.findAllReminders(this.user).then((arr) => {
                         console.log(arr);
@@ -239,16 +228,16 @@ class NeverForget {
                     this.bot.sendMessage(this.user, "Упс, что-то пошло не так! Попробуйте еще раз!", markUps_1.menu);
                 }
             }
-        }, 1000);
+        }, 60000);
     }
     // получаем массив активных напоминаний и отправляем просроченные 
     sendReminders(arr) {
         return __awaiter(this, void 0, void 0, function* () {
             const now = (0, moment_timezone_1.default)().tz(this.timeZone);
             for (let i = 0; i < arr.length; i++) {
-                const { date, text, _id, } = arr[i];
+                const { date, text, id, } = arr[i];
                 if ((0, moment_timezone_1.default)(date).tz(this.timeZone).isBefore(now)) {
-                    yield this.db.deleteReminder(_id);
+                    yield this.db.deleteReminder(id);
                     const message = `Сегодня в ${(0, moment_timezone_1.default)(date).tz(this.timeZone).locale('ru').format('LT')} вы хотели: ${text}`;
                     yield this.bot.sendMessage(this.user, message);
                 }

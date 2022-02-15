@@ -42,6 +42,9 @@ export default class NeverForget {
   public init(): void {
     this.db.init();
     this.startBot();
+    this.listenForCallback();
+    this.listenForReminder();
+    this.checkForReminders();
   }
 
   //обработка команды /start, сохранияем id юзера и показываем ему меню
@@ -62,9 +65,6 @@ export default class NeverForget {
         console.log(e);
       }
     });
-    this.listenForCallback();
-    this.listenForReminder();
-    this.checkForReminders();
   }
 
   //слушаем callback_query
@@ -122,16 +122,25 @@ export default class NeverForget {
           }
           //показываем лист всех напоминаний пользователю
           if (data === "/showList") {
-            if (this.reminders.length === 0)
+            try {
+              this.db.findAllReminders(this.user).then(async (reminders: Array<Reminder>) => {
+                for (let i = 0; i < reminders.length; i++) {
+                  const {
+                    date,
+                    text,
+                  }: { date: string, text: string } =
+                  reminders[i];
+                  const formatedDate: string = moment(date).tz(this.timeZone).locale('ru').format('LLLL');
+                  await this.bot.sendMessage(this.user, `Напоминаие № раз\n${formatedDate}\n${text}`);
+                }
+              });
+            } catch(e) {
               return this.bot.sendMessage(
                 this.user,
-                "У вас нет сохоаненный напоминаний.",
+                "Что-то пошло не так!",
                 menu
               );
-            this.reminders.forEach(async (el: Reminder): Promise<void> => {
-              await this.bot.sendMessage(this.user, el.text);
-            });
-            return this.sendMainMenu();
+            }
           }
         }
         // если приходит неизвестная команда, то обнуляем стейты и выдаем меню пользователю
@@ -276,26 +285,11 @@ export default class NeverForget {
     const compared = new Date(date);
     return compared > now;
   }
-  // обновляем напоминания
-  private async fetchReminders(): Promise<void> {
-    this.reminders = [];
-    await this.db.findAllReminders(this.user).then((res) => {
-      res.forEach((el) => {
-        const item: Reminder = {
-          userId: el["userId"],
-          text: el["text"],
-          id: el["id"],
-          date: el["date"],
-        };
-        this.reminders.push(item);
-      });
-    });
-  }
 
   //запускваем проверку напоминаний
   public checkForReminders(): void {
     setInterval((): void => {
-      if (this.user !== 0) {
+      if (this.user !== 0 && this.timeZone !== '') {
         try {
           this.db.findAllReminders(this.user).then((arr) => {
             console.log(arr);
@@ -310,21 +304,22 @@ export default class NeverForget {
           );
         }
       }
-    }, 1000);
+    }, 60000);
   }
 
   // получаем массив активных напоминаний и отправляем просроченные 
-  public async sendReminders(arr: Array<any>): Promise<void> {
+  public async sendReminders(arr: Array<Reminder>): Promise<void> {
     const now: moment.Moment = moment().tz(this.timeZone);
     for (let i = 0; i < arr.length; i++) {
       const {
         date,
         text,
-        _id,
-      }: { date: string; text: string; userId: number; _id: ObjectId } =
+        id,
+      }: { date: string, text: string, id: string } =
       arr[i];
       if (moment(date).tz(this.timeZone).isBefore(now)) {
-        await this.db.deleteReminder(_id);
+
+        await this.db.deleteReminder(id);
         const message: string = `Сегодня в ${moment(date).tz(this.timeZone).locale('ru').format('LT')} вы хотели: ${text}`
         await this.bot.sendMessage(this.user, message);
       }

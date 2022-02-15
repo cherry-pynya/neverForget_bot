@@ -52,24 +52,25 @@ class DataBase {
     // получаем массив напоминаний
     findAllReminders(id) {
         return __awaiter(this, void 0, void 0, function* () {
+            const result = [];
             try {
                 const remiders = this.reminders.find({ "userId": id });
                 if ((yield remiders.count()) === 0) {
-                    return [];
+                    return result;
                 }
                 return remiders.toArray();
             }
             catch (e) {
                 console.log(e);
             }
-            return [];
+            return result;
         });
     }
     //удаляем напоминнаие
-    deleteReminder(_id) {
+    deleteReminder(id) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
-                this.reminders.deleteOne({ _id });
+                this.reminders.deleteOne({ id });
             }
             catch (e) {
                 console.log(e);
