@@ -94,19 +94,41 @@ class NeverForget {
                     if (data === "/showList") {
                         try {
                             this.db.findAllReminders(this.user).then((reminders) => __awaiter(this, void 0, void 0, function* () {
-                                for (let i = 0; i < reminders.length; i++) {
-                                    const { date, text, } = reminders[i];
-                                    const formatedDate = (0, moment_timezone_1.default)(date).tz(this.timeZone).locale('ru').format('LLLL');
-                                    yield this.bot.sendMessage(this.user, `Напоминаие № раз\n${formatedDate}\n${text}`);
+                                //если напоминаний нет
+                                if (reminders.length === 0) {
+                                    yield this.bot.sendMessage(this.user, 'У вас нет сохраненных напоминаний!');
+                                    yield this.sendMainMenu();
                                 }
+                                for (let i = 0; i < reminders.length; i++) {
+                                    const { date, text, id } = reminders[i];
+                                    const formatedDate = (0, moment_timezone_1.default)(date).tz(this.timeZone).locale('ru').format('LLLL');
+                                    yield this.bot.sendMessage(this.user, `Напоминаие № раз\n${formatedDate}\n${text}`, this.createDeleteMarkUp(id));
+                                }
+                                yield this.sendMainMenu();
                             }));
                         }
                         catch (e) {
                             return this.bot.sendMessage(this.user, "Что-то пошло не так!", markUps_1.menu);
                         }
+                        //это нужно чтобы не отрабатывал блок "неизвестная команда"
+                        return undefined;
                     }
+                    if (regexp_1.regDeleteReminder.test(data)) {
+                        const id = data.slice(15);
+                        try {
+                            this.db.deleteReminder(id);
+                            yield this.bot.sendMessage(this.user, 'Напоминание удалено!');
+                            return this.sendMainMenu();
+                        }
+                        catch (e) {
+                            return this.bot.sendMessage(this.user, "Что-то пошло не так!", markUps_1.menu);
+                        }
+                    }
+                    //это нужно чтобы не отрабатывал блок "неизвестная команда"
+                    return undefined;
                 }
                 // если приходит неизвестная команда, то обнуляем стейты и выдаем меню пользователю
+                // блок неизвестная команда
                 this.relaodStates();
                 return this.bot.sendMessage(this.user, "Неизыестная команда, Попробуйте выбрать одну их этих команд:", markUps_1.menu);
             }
@@ -114,6 +136,18 @@ class NeverForget {
                 console.log(e);
             }
         }));
+    }
+    createDeleteMarkUp(id) {
+        const mk = {
+            "reply_markup": {
+                inline_keyboard: [
+                    [
+                        { text: 'Удалить это напоминание', callback_data: `/deleteReminder${id}` }
+                    ],
+                ]
+            }
+        };
+        return mk;
     }
     //слушаем сообщения пользователя
     listenForReminder() {
@@ -146,7 +180,7 @@ class NeverForget {
                                 return this.sendMainMenu();
                             }
                         }
-                        //сохранияем текс, сохраняем напоминание и очмщаес стейт
+                        //сохранияем текс, сохраняем напоминание и очищаем стейт
                         if (dateSend && timeSend && textSend) {
                             this.reminderState.text = text;
                             const { date, time } = this.reminderState;

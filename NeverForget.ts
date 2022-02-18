@@ -5,11 +5,10 @@ import TelegramApi, {
 import moment from "moment-timezone";
 import DataBase from "./DataBase";
 import { nanoid } from "nanoid";
-import { Document, WithId, ObjectId } from "mongodb";
 
-import { backToMenu, menu, countrySelection } from "./markUps";
+import { menu, countrySelection } from "./markUps";
 import messages from "./messages";
-import { regTime, regDate } from "./regexp";
+import { regTime, regDate, regDeleteReminder } from "./regexp";
 import { Reminder } from "./Interfaces/Reminder/Reminder";
 import {
   ReminderState,
@@ -123,17 +122,40 @@ export default class NeverForget {
           //показываем лист всех напоминаний пользователю
           if (data === "/showList") {
             try {
-              this.db.findAllReminders(this.user).then(async (reminders: Array<Reminder>) => {
+              this.db.findAllReminders(this.user).then(async (reminders: Array<Reminder>): Promise<void> => {
+                //если напоминаний нет
+                if (reminders.length === 0) {
+                  await this.bot.sendMessage(this.user, 'У вас нет сохраненных напоминаний!')
+                  await this.sendMainMenu();
+                }
                 for (let i = 0; i < reminders.length; i++) {
                   const {
                     date,
                     text,
-                  }: { date: string, text: string } =
-                  reminders[i];
+                    id
+                  }: { date: string, text: string, id: string } =
+                    reminders[i];
                   const formatedDate: string = moment(date).tz(this.timeZone).locale('ru').format('LLLL');
-                  await this.bot.sendMessage(this.user, `Напоминаие № раз\n${formatedDate}\n${text}`);
+                  await this.bot.sendMessage(this.user, `Напоминаие № раз\n${formatedDate}\n${text}`, this.createDeleteMarkUp(id));
                 }
+                await this.sendMainMenu();
               });
+            } catch (e) {
+              return this.bot.sendMessage(
+                this.user,
+                "Что-то пошло не так!",
+                menu
+              );
+            }
+            //это нужно чтобы не отрабатывал блок "неизвестная команда"
+            return undefined;
+          }
+          if (regDeleteReminder.test(data)) {
+            const id: string = data.slice(15);
+            try {
+              this.db.deleteReminder(id);
+              await this.bot.sendMessage(this.user, 'Напоминание удалено!')
+              return this.sendMainMenu();
             } catch(e) {
               return this.bot.sendMessage(
                 this.user,
@@ -142,8 +164,12 @@ export default class NeverForget {
               );
             }
           }
+          //это нужно чтобы не отрабатывал блок "неизвестная команда"
+          return undefined;
         }
+
         // если приходит неизвестная команда, то обнуляем стейты и выдаем меню пользователю
+        // блок неизвестная команда
         this.relaodStates();
         return this.bot.sendMessage(
           this.user,
@@ -155,6 +181,20 @@ export default class NeverForget {
       }
     });
   }
+
+  private createDeleteMarkUp(id: string): SendMessageOptions {
+    const mk: SendMessageOptions = {
+      "reply_markup": {
+        inline_keyboard: [
+          [
+            { text: 'Удалить это напоминание', callback_data: `/deleteReminder${id}` }
+          ],
+        ]
+      }
+    }
+    return mk;
+  }
+
   //слушаем сообщения пользователя
   public listenForReminder(): void {
     this.bot.on("message", async (msg): Promise<Message | void> => {
@@ -200,7 +240,7 @@ export default class NeverForget {
                 return this.sendMainMenu();
               }
             }
-            //сохранияем текс, сохраняем напоминание и очмщаес стейт
+            //сохранияем текс, сохраняем напоминание и очищаем стейт
             if (dateSend && timeSend && textSend) {
               this.reminderState.text = text;
               const { date, time }: { date: string; time: string } =
@@ -316,7 +356,7 @@ export default class NeverForget {
         text,
         id,
       }: { date: string, text: string, id: string } =
-      arr[i];
+        arr[i];
       if (moment(date).tz(this.timeZone).isBefore(now)) {
 
         await this.db.deleteReminder(id);
