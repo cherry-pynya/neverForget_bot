@@ -41,6 +41,7 @@ export default class NeverForget {
   public init(): void {
     this.db.init();
     this.startBot();
+    this.listemComands();
     this.listenForCallback();
     this.listenForReminder();
     this.checkForReminders();
@@ -61,7 +62,54 @@ export default class NeverForget {
           countrySelection
         );
       } catch (e) {
-        console.log(e);
+        console.log('startBot');
+      }
+    });
+  }
+  //слушаем команды
+  public listemComands(): void {
+    this.bot.onText(/\/cancel/, async (msg): Promise<Message | void> => {
+      try {
+        this.relaodStates();
+      return this.bot.sendMessage(this.user, 'Все действия отменены!');
+      } catch (e) {
+        return this.bot.sendMessage(this.user, 'Что-то пошло не так! Попробуй еще раз!');
+      }
+    });
+    //запускаем создание нового уведомления
+    this.bot.onText(/\/newreminder/, async (msg): Promise<Message | void> => {
+      try {
+        this.reminderState.status = true;
+        this.reminderState.dateSend = true;
+        return this.bot.sendMessage(
+          this.user,
+          "Введите число в формате ДД.ММ.ГГГГ."
+        );
+      } catch (e) {
+        return this.bot.sendMessage(this.user, 'Что-то пошло не так! Попробуй еще раз!');
+      }
+    });
+    //показываем список напоминаний
+    this.bot.onText(/\/showlist/, async (msg): Promise<Message | void> => {
+      try {
+        this.db.findAllReminders(this.user).then(async (reminders: Array<Reminder>): Promise<void> => {
+          //если напоминаний нет
+          if (reminders.length === 0) {
+            await this.bot.sendMessage(this.user, 'У вас нет сохраненных напоминаний!')
+          }
+          for (let i = 0; i < reminders.length; i++) {
+            const {
+              date,
+              text,
+              id
+            }: { date: string, text: string, id: string } =
+              reminders[i];
+            const formatedDate: string = moment(date).tz(this.timeZone).locale('ru').format('LLLL');
+            await this.bot.sendMessage(this.user, `Напоминаие № раз\n${formatedDate}\n${text}`, this.createDeleteMarkUp(id));
+          }
+        });
+      } catch (e) {
+        return this.bot.sendMessage(this.user, 'Что-то пошло не так! Попробуй еще раз!');
       }
     });
   }
@@ -81,19 +129,6 @@ export default class NeverForget {
         } = this.timeZoneState;
         if (msg.data !== undefined) {
           data = msg.data;
-          //запускваем сохоанение напоминания
-          if (data === "/newReminder") {
-            this.reminderState.status = true;
-            this.reminderState.dateSend = true;
-            return this.bot.sendMessage(
-              this.user,
-              "Введите число в формате ДД.ММ.ГГГГ."
-            );
-          }
-          //возвращанмся в главное меню
-          if (data === "/backToMenu") {
-            return this.sendMainMenu();
-          }
           //выбираем страну для часового пояса
           if (this.countries.includes(data) && status) {
             this.timeZoneState.countrySelected = true;
@@ -116,47 +151,14 @@ export default class NeverForget {
             this.timeZoneState.timeZoneSelected = true;
             this.timeZone = data;
             this.relaodStates();
-            await this.bot.sendMessage(this.user, "Часовой пояс выбран!");
-            return this.sendMainMenu();
-          }
-          //показываем лист всех напоминаний пользователю
-          if (data === "/showList") {
-            try {
-              this.db.findAllReminders(this.user).then(async (reminders: Array<Reminder>): Promise<void> => {
-                //если напоминаний нет
-                if (reminders.length === 0) {
-                  await this.bot.sendMessage(this.user, 'У вас нет сохраненных напоминаний!')
-                  await this.sendMainMenu();
-                }
-                for (let i = 0; i < reminders.length; i++) {
-                  const {
-                    date,
-                    text,
-                    id
-                  }: { date: string, text: string, id: string } =
-                    reminders[i];
-                  const formatedDate: string = moment(date).tz(this.timeZone).locale('ru').format('LLLL');
-                  await this.bot.sendMessage(this.user, `Напоминаие № раз\n${formatedDate}\n${text}`, this.createDeleteMarkUp(id));
-                }
-                await this.sendMainMenu();
-              });
-            } catch (e) {
-              return this.bot.sendMessage(
-                this.user,
-                "Что-то пошло не так!",
-                menu
-              );
-            }
-            //это нужно чтобы не отрабатывал блок "неизвестная команда"
-            return undefined;
+            return this.bot.sendMessage(this.user, "Часовой пояс выбран!");
           }
           if (regDeleteReminder.test(data)) {
             const id: string = data.slice(15);
             try {
               this.db.deleteReminder(id);
               await this.bot.sendMessage(this.user, 'Напоминание удалено!')
-              return this.sendMainMenu();
-            } catch(e) {
+            } catch (e) {
               return this.bot.sendMessage(
                 this.user,
                 "Что-то пошло не так!",
@@ -167,17 +169,9 @@ export default class NeverForget {
           //это нужно чтобы не отрабатывал блок "неизвестная команда"
           return undefined;
         }
-
-        // если приходит неизвестная команда, то обнуляем стейты и выдаем меню пользователю
-        // блок неизвестная команда
-        this.relaodStates();
-        return this.bot.sendMessage(
-          this.user,
-          "Неизыестная команда, Попробуйте выбрать одну их этих команд:",
-          menu
-        );
       } catch (e) {
-        console.log(e);
+        console.log('listenForCallback');
+        return this.bot.sendMessage(this.user, 'Что-то пошло не так! Попробуй еще раз!');
       }
     });
   }
@@ -233,11 +227,10 @@ export default class NeverForget {
                 );
               } else {
                 this.relaodStates();
-                await this.bot.sendMessage(
+                return this.bot.sendMessage(
                   this.user,
                   messages.messahesToFuture
                 );
-                return this.sendMainMenu();
               }
             }
             //сохранияем текс, сохраняем напоминание и очищаем стейт
@@ -247,20 +240,23 @@ export default class NeverForget {
                 this.reminderState;
               this.saveReminder(date, time, text);
               this.relaodStates();
-              await this.bot.sendMessage(
+              return this.bot.sendMessage(
                 this.user,
                 "Поздравляю! Напоминание сохранено"
               );
-              return this.sendMainMenu();
             }
-            return this.bot.sendMessage(
-              this.user,
-              "Не совсем Вас понял, попробуйте еще раз!"
-            );
+            if (text !== '/cancel' && status) {
+              return this.bot.sendMessage(
+                this.user,
+                "Не совсем Вас понял, попробуйте еще раз!"
+              );
+            }
           }
         }
       } catch (e) {
-        console.log(e);
+        this.relaodStates();
+        console.log('listenForReminder');
+        this.bot.sendMessage(this.user, 'Упс! Что-то пошло не так!')
       }
     });
   }

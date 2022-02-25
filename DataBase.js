@@ -23,7 +23,7 @@ class DataBase {
                 console.log('DB conected!');
             }
             catch (e) {
-                console.log(e);
+                console.log('init');
             }
         });
     }
@@ -34,7 +34,7 @@ class DataBase {
                 yield this.reminders.insertOne(item);
             }
             catch (e) {
-                console.log(e);
+                console.log('addReminder');
             }
         });
     }
@@ -45,7 +45,7 @@ class DataBase {
                 yield this.users.insertOne(user);
             }
             catch (e) {
-                console.log(e);
+                console.log('addUser');
             }
         });
     }
@@ -61,7 +61,7 @@ class DataBase {
                 return remiders.toArray();
             }
             catch (e) {
-                console.log(e);
+                console.log('findAllReminders');
             }
             return result;
         });
@@ -73,7 +73,7 @@ class DataBase {
                 this.reminders.deleteOne({ id });
             }
             catch (e) {
-                console.log(e);
+                console.log('deleteReminder');
             }
         });
     }

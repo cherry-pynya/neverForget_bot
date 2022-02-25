@@ -11,8 +11,6 @@ export const menu: SendMessageOptions = {
             ], [
                 {text: 'Показать все напоминания', callback_data: '/showList'},
             ], [
-                {text: 'Удалить напоминание', callback_data: '/deleteMessage'},
-            ], [
                 {text: 'Изменить часовой пояс', callback_data: '/settings'},
             ]
         ]

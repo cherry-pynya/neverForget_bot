@@ -18,7 +18,7 @@ export default class DataBase {
             this.reminders = this.db.db().collection<Reminder>('reminders');
             console.log('DB conected!');
         } catch(e) {
-            console.log(e);
+            console.log('init');
         }
     }
     // сохранияем напоминание в базу
@@ -26,7 +26,7 @@ export default class DataBase {
         try {
             await this.reminders.insertOne(item);
         } catch(e) {
-            console.log(e);
+            console.log('addReminder');
         }
     }
     // добавляем юзера в базу
@@ -34,7 +34,7 @@ export default class DataBase {
         try {
             await this.users.insertOne(user);
         } catch(e) {
-            console.log(e);
+            console.log('addUser');
         }
     }
     // получаем массив напоминаний
@@ -47,7 +47,7 @@ export default class DataBase {
             }
             return remiders.toArray();
         } catch(e) {
-            console.log(e);
+            console.log('findAllReminders');
         }
         return result;
     }
@@ -56,7 +56,7 @@ export default class DataBase {
         try {
             this.reminders.deleteOne({id});
         } catch(e) {
-            console.log(e);
+            console.log('deleteReminder');
         }
     }
 }
