@@ -20,6 +20,7 @@ const regexp_1 = require("./regexp");
 const ReminderState_1 = require("./Interfaces/ReminderState/ReminderState");
 const MarkUpFactory_1 = __importDefault(require("./MarkUpFactory"));
 const TimeZoneState_1 = require("./Interfaces/TimeZoneState/TimeZoneState");
+const comands_1 = require("./comands");
 class NeverForget {
     constructor(bot, db) {
         this.bot = bot;
@@ -60,6 +61,7 @@ class NeverForget {
     listemComands() {
         this.bot.onText(/\/cancel/, (msg) => __awaiter(this, void 0, void 0, function* () {
             try {
+                this.checkTZexist();
                 this.relaodStates();
                 return this.bot.sendMessage(this.user, 'Все действия отменены!');
             }
@@ -70,6 +72,7 @@ class NeverForget {
         //запускаем создание нового уведомления
         this.bot.onText(/\/newreminder/, (msg) => __awaiter(this, void 0, void 0, function* () {
             try {
+                this.checkTZexist();
                 this.reminderState.status = true;
                 this.reminderState.dateSend = true;
                 return this.bot.sendMessage(this.user, "Введите число в формате ДД.ММ.ГГГГ.");
@@ -81,10 +84,11 @@ class NeverForget {
         //показываем список напоминаний
         this.bot.onText(/\/showlist/, (msg) => __awaiter(this, void 0, void 0, function* () {
             try {
+                this.checkTZexist();
                 this.db.findAllReminders(this.user).then((reminders) => __awaiter(this, void 0, void 0, function* () {
                     //если напоминаний нет
                     if (reminders.length === 0) {
-                        yield this.bot.sendMessage(this.user, 'У вас нет сохраненных напоминаний!');
+                        return this.bot.sendMessage(this.user, 'У вас нет сохраненных напоминаний!');
                     }
                     for (let i = 0; i < reminders.length; i++) {
                         const { date, text, id } = reminders[i];
@@ -92,6 +96,16 @@ class NeverForget {
                         yield this.bot.sendMessage(this.user, `Напоминаие № раз\n${formatedDate}\n${text}`, this.createDeleteMarkUp(id));
                     }
                 }));
+            }
+            catch (e) {
+                return this.bot.sendMessage(this.user, 'Что-то пошло не так! Попробуй еще раз!');
+            }
+        }));
+        //меняем часовой пояс
+        this.bot.onText(/\/changezone/, (msg) => __awaiter(this, void 0, void 0, function* () {
+            try {
+                this.timeZoneState.status = true;
+                return this.bot.sendMessage(this.user, 'Выберите страну', markUps_1.countrySelection);
             }
             catch (e) {
                 return this.bot.sendMessage(this.user, 'Что-то пошло не так! Попробуй еще раз!');
@@ -158,8 +172,10 @@ class NeverForget {
     listenForReminder() {
         this.bot.on("message", (msg) => __awaiter(this, void 0, void 0, function* () {
             try {
-                const { status } = this.reminderState;
-                if (status) {
+                const reminderStatus = this.reminderState.status;
+                const timeZoneStatus = this.timeZoneState.status;
+                if (reminderStatus) {
+                    this.checkTZexist();
                     const { dateSend, timeSend, textSend, } = this.reminderState;
                     if (msg.text !== undefined) {
                         const text = msg.text.trim();
@@ -192,10 +208,14 @@ class NeverForget {
                             this.relaodStates();
                             return this.bot.sendMessage(this.user, "Поздравляю! Напоминание сохранено");
                         }
-                        if (text !== '/cancel' && status) {
+                        if (!comands_1.comamds.includes(text) && reminderStatus) {
+                            console.log(comands_1.comamds.includes(text));
                             return this.bot.sendMessage(this.user, "Не совсем Вас понял, попробуйте еще раз!");
                         }
                     }
+                }
+                if (timeZoneStatus) {
+                    return this.bot.sendMessage(this.user, 'Сначала нужно выбрать часовой пояс!');
                 }
             }
             catch (e) {
@@ -207,7 +227,7 @@ class NeverForget {
     }
     //проверяем установлен ли часовой пояс
     checkTZexist() {
-        if (this.timeZone === "") {
+        if (this.timeZone === "" && !this.timeZoneState.status) {
             this.relaodStates();
             this.timeZoneState.status = true;
             return this.bot.sendMessage(this.user, messages_1.default.timeZone, markUps_1.countrySelection);
@@ -260,7 +280,6 @@ class NeverForget {
             if (this.user !== 0 && this.timeZone !== '') {
                 try {
                     this.db.findAllReminders(this.user).then((arr) => {
-                        console.log(arr);
                         this.sendReminders(arr);
                     });
                 }

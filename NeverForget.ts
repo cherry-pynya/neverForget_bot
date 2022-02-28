@@ -18,6 +18,7 @@ import MarkUpFactory from "./MarkUpFactory";
 import TimeZoneState, {
   initialTimeZoneState,
 } from "./Interfaces/TimeZoneState/TimeZoneState";
+import { comamds } from "./comands";
 
 export default class NeverForget {
   private db: DataBase;
@@ -70,6 +71,7 @@ export default class NeverForget {
   public listemComands(): void {
     this.bot.onText(/\/cancel/, async (msg): Promise<Message | void> => {
       try {
+        this.checkTZexist();
         this.relaodStates();
       return this.bot.sendMessage(this.user, 'Все действия отменены!');
       } catch (e) {
@@ -79,6 +81,7 @@ export default class NeverForget {
     //запускаем создание нового уведомления
     this.bot.onText(/\/newreminder/, async (msg): Promise<Message | void> => {
       try {
+        this.checkTZexist();
         this.reminderState.status = true;
         this.reminderState.dateSend = true;
         return this.bot.sendMessage(
@@ -92,10 +95,11 @@ export default class NeverForget {
     //показываем список напоминаний
     this.bot.onText(/\/showlist/, async (msg): Promise<Message | void> => {
       try {
-        this.db.findAllReminders(this.user).then(async (reminders: Array<Reminder>): Promise<void> => {
+        this.checkTZexist();
+        this.db.findAllReminders(this.user).then(async (reminders: Array<Reminder>): Promise<void | Message> => {
           //если напоминаний нет
           if (reminders.length === 0) {
-            await this.bot.sendMessage(this.user, 'У вас нет сохраненных напоминаний!')
+            return this.bot.sendMessage(this.user, 'У вас нет сохраненных напоминаний!')
           }
           for (let i = 0; i < reminders.length; i++) {
             const {
@@ -108,6 +112,19 @@ export default class NeverForget {
             await this.bot.sendMessage(this.user, `Напоминаие № раз\n${formatedDate}\n${text}`, this.createDeleteMarkUp(id));
           }
         });
+      } catch (e) {
+        return this.bot.sendMessage(this.user, 'Что-то пошло не так! Попробуй еще раз!');
+      }
+    });
+    //меняем часовой пояс
+    this.bot.onText(/\/changezone/, async (msg): Promise<Message | void> => {
+      try {
+        this.timeZoneState.status = true;
+        return this.bot.sendMessage(
+          this.user,
+          'Выберите страну',
+          countrySelection
+        );
       } catch (e) {
         return this.bot.sendMessage(this.user, 'Что-то пошло не так! Попробуй еще раз!');
       }
@@ -193,8 +210,10 @@ export default class NeverForget {
   public listenForReminder(): void {
     this.bot.on("message", async (msg): Promise<Message | void> => {
       try {
-        const { status }: { status: boolean } = this.reminderState;
-        if (status) {
+        const reminderStatus: boolean = this.reminderState.status;
+        const timeZoneStatus: boolean = this.timeZoneState.status;
+        if (reminderStatus) {
+          this.checkTZexist();
           const {
             dateSend,
             timeSend,
@@ -245,13 +264,17 @@ export default class NeverForget {
                 "Поздравляю! Напоминание сохранено"
               );
             }
-            if (text !== '/cancel' && status) {
+            if (!comamds.includes(text) && reminderStatus) {
+              console.log(comamds.includes(text));
               return this.bot.sendMessage(
                 this.user,
                 "Не совсем Вас понял, попробуйте еще раз!"
               );
             }
           }
+        }
+        if (timeZoneStatus) {
+          return this.bot.sendMessage(this.user, 'Сначала нужно выбрать часовой пояс!')
         }
       } catch (e) {
         this.relaodStates();
@@ -260,9 +283,10 @@ export default class NeverForget {
       }
     });
   }
+
   //проверяем установлен ли часовой пояс
   private checkTZexist(): Promise<Message> | boolean {
-    if (this.timeZone === "") {
+    if (this.timeZone === "" && !this.timeZoneState.status) {
       this.relaodStates();
       this.timeZoneState.status = true;
       return this.bot.sendMessage(
@@ -328,7 +352,6 @@ export default class NeverForget {
       if (this.user !== 0 && this.timeZone !== '') {
         try {
           this.db.findAllReminders(this.user).then((arr) => {
-            console.log(arr);
             this.sendReminders(arr);
           });
         } catch (e) {

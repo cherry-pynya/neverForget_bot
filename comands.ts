@@ -1,0 +1,1 @@
+export const comamds: Array<string> = ['/start', '/newreminder', '/changezone', '/showlist', '/cancel'];
