@@ -26,9 +26,9 @@ class NeverForget {
         this.bot = bot;
         this.reminders = [];
         this.user = 0;
-        this.reminderState = ReminderState_1.initialReminderState;
+        this.reminderState = Object.assign({}, ReminderState_1.initialReminderState);
         this.timeZone = "";
-        this.timeZoneState = TimeZoneState_1.initialTimeZoneState;
+        this.timeZoneState = Object.assign({}, TimeZoneState_1.initialTimeZoneState);
         this.countries = ["RU", "UA", "BY", "CN"];
         this.db = db;
     }
@@ -93,7 +93,7 @@ class NeverForget {
                     for (let i = 0; i < reminders.length; i++) {
                         const { date, text, id } = reminders[i];
                         const formatedDate = (0, moment_timezone_1.default)(date).tz(this.timeZone).locale('ru').format('LLLL');
-                        yield this.bot.sendMessage(this.user, `Напоминаие № раз\n${formatedDate}\n${text}`, this.createDeleteMarkUp(id));
+                        yield this.bot.sendMessage(this.user, `${formatedDate}\n${text}`, this.createDeleteMarkUp(id));
                     }
                 }));
             }
@@ -206,6 +206,8 @@ class NeverForget {
                             const { date, time } = this.reminderState;
                             this.saveReminder(date, time, text);
                             this.relaodStates();
+                            console.log(this.reminderState);
+                            console.log(ReminderState_1.initialReminderState);
                             return this.bot.sendMessage(this.user, "Поздравляю! Напоминание сохранено");
                         }
                         if (!comands_1.comamds.includes(text) && reminderStatus) {
@@ -213,9 +215,6 @@ class NeverForget {
                             return this.bot.sendMessage(this.user, "Не совсем Вас понял, попробуйте еще раз!");
                         }
                     }
-                }
-                if (timeZoneStatus) {
-                    return this.bot.sendMessage(this.user, 'Сначала нужно выбрать часовой пояс!');
                 }
             }
             catch (e) {
@@ -234,14 +233,10 @@ class NeverForget {
         }
         return false;
     }
-    //пирсылаем пользователю главное меню
-    sendMainMenu() {
-        return this.bot.sendMessage(this.user, messages_1.default.main, markUps_1.menu);
-    }
     //обгуляем все стейты
     relaodStates() {
-        this.timeZoneState = TimeZoneState_1.initialTimeZoneState;
-        this.reminderState = ReminderState_1.initialReminderState;
+        this.timeZoneState = Object.assign({}, TimeZoneState_1.initialTimeZoneState);
+        this.reminderState = Object.assign({}, ReminderState_1.initialReminderState);
     }
     //сохранияем уведомление
     saveReminder(date, time, reminder) {

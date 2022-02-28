@@ -26,14 +26,14 @@ export default class NeverForget {
   public user: number;
   public reminderState: ReminderState;
   public timeZone: string;
-  private timeZoneState: TimeZoneState;
+  public timeZoneState: TimeZoneState;
   private countries: Array<string>;
   constructor(public bot: TelegramApi, db: DataBase) {
     this.reminders = [];
     this.user = 0;
-    this.reminderState = initialReminderState;
+    this.reminderState = {...initialReminderState};
     this.timeZone = "";
-    this.timeZoneState = initialTimeZoneState;
+    this.timeZoneState = {...initialTimeZoneState};
     this.countries = ["RU", "UA", "BY", "CN"];
     this.db = db;
   }
@@ -109,7 +109,7 @@ export default class NeverForget {
             }: { date: string, text: string, id: string } =
               reminders[i];
             const formatedDate: string = moment(date).tz(this.timeZone).locale('ru').format('LLLL');
-            await this.bot.sendMessage(this.user, `Напоминаие № раз\n${formatedDate}\n${text}`, this.createDeleteMarkUp(id));
+            await this.bot.sendMessage(this.user, `${formatedDate}\n${text}`, this.createDeleteMarkUp(id));
           }
         });
       } catch (e) {
@@ -256,9 +256,11 @@ export default class NeverForget {
             if (dateSend && timeSend && textSend) {
               this.reminderState.text = text;
               const { date, time }: { date: string; time: string } =
-                this.reminderState;
+              this.reminderState;
               this.saveReminder(date, time, text);
               this.relaodStates();
+              console.log(this.reminderState)
+              console.log(initialReminderState)
               return this.bot.sendMessage(
                 this.user,
                 "Поздравляю! Напоминание сохранено"
@@ -272,9 +274,6 @@ export default class NeverForget {
               );
             }
           }
-        }
-        if (timeZoneStatus) {
-          return this.bot.sendMessage(this.user, 'Сначала нужно выбрать часовой пояс!')
         }
       } catch (e) {
         this.relaodStates();
@@ -298,15 +297,10 @@ export default class NeverForget {
     return false;
   }
 
-  //пирсылаем пользователю главное меню
-  private sendMainMenu(): Promise<Message> {
-    return this.bot.sendMessage(this.user, messages.main, menu);
-  }
-
   //обгуляем все стейты
   private relaodStates(): void {
-    this.timeZoneState = initialTimeZoneState;
-    this.reminderState = initialReminderState;
+    this.timeZoneState = {...initialTimeZoneState};
+    this.reminderState = {...initialReminderState};
   }
 
   //сохранияем уведомление

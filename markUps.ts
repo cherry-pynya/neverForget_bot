@@ -39,10 +39,7 @@ export const countrySelection: SendMessageOptions = {
             ], 
             [
                 {text: 'Беларусь', callback_data: 'BY'}
-            ], 
-            [
-                {text: 'Китай', callback_data: 'СN'}
-            ], 
+            ],
         ]
     }
 }
